@@ -1,0 +1,366 @@
+---
+title: "Variational Inference <br/> A Review for Statisticians. <br/>Blei et al., 2017, JASA"
+subtitle: "with a very informal discussion"
+# author: "Emanuele Aliverti"
+date: '04-04-2019'
+includes:
+            in_header: macro.sty
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: xaringan-themer.css
+    chakra: libs/remark-latest.min.js
+    nature:
+      slideNumberFormat: "%current%"                  
+      highlightStyle: github
+      # highlightLines: true
+      countIncrementalSlides: false
+---
+
+<!-- class: middle -->
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+require(ggplot2)
+```
+
+```{r xaringan-themer, include=FALSE}
+library(xaringanthemer)
+mono_accent(base_color = "#FF6F61",
+  code_font_family = "Fira Code",
+  code_font_url    = "https://cdn.rawgit.com/tonsky/FiraCode/1.204/distr/fira_code.css"
+)
+```
+# An introduction to the topic
+.right-column[
+1. [Blei et al. (2017) Variational Inference: A Review for Statisticians, JASA & the paper of today](https://www.tandfonline.com/doi/full/10.1080/01621459.2017.1285773)
+1. Ormerod and Wand (2010), Explaining Variational Approximations, The American Statistician
+1. Bishop (2006), Pattern Recognition and ML (Chapter 10)
+1. Wainwright and Jordan (2008), Graphical Models, Exponential Families, and Variational Inference
+]
+
+.left-column[
+![](https://media.giphy.com/media/craZZHkABpd9m/giphy-downsized.gif)
+]
+
+#### The purpose of the paper
+- *'In writing this article, our hope is to catalyze statistical research on variational inference.'*
+- Very popular in ML but statistical properties are not understood
+---
+
+# What is Variational Inference?
+.pull-left[
+- *Deterministic* technique to make **approximate** inference in complex (and simple) statistical models
+- Use optimization to find a reasonable approximation of the posterior
+- Variational calculus (Lagrange): optimizing a *functional* over a class of functions
+- Very popular during the early 2000, mostly in ML and CS. Recently, became popular again 
+]
+
+--
+.pull-right[
+```{r,echo=F,message=FALSE}
+par(mar = c(4, 4, 1, .1))
+dat=read.csv("multiTimeline.csv")
+names(dat) = c("mese","vb")
+ll = round(seq(1,183,by=8))
+ggplot(dat,aes(x=1:183,y=vb)) + geom_line()+geom_smooth()+
+  theme_bw() +
+  xlab("Mese")+
+  scale_x_continuous(breaks=ll,labels = dat$mese[ll])+
+  theme(axis.text.x = element_text(face="bold", 
+                           size=14, angle=90))
+
+```
+]
+---
+
+
+# Setting
+
+- $\boldsymbol{z} = \{z_j\}_{j=1}^p$ parameters ( $\beta$s, latent variables...), with prior $p(\boldsymbol{z})$
+- $\boldsymbol{x} = \{x_i\}_{i=1}^n$ given $z$, conditional density $p(\boldsymbol{x} \mid \boldsymbol{z})$
+--
+<!-- with joint density -->
+
+<!-- $$p(\boldsymbol{z},\boldsymbol{x})=p(\boldsymbol{z})p(\boldsymbol{x} \mid \boldsymbol{z})$$ -->
+Focus of Bayesian inference is on obtaining the posterior distribution
+$$p(\boldsymbol{z} \mid \boldsymbol{x})= \frac{p(\boldsymbol{z})p(\boldsymbol{x} \mid \boldsymbol{z})}{p(\boldsymbol{x)}}$$
+with $$p(\boldsymbol{x}) = \int p(\boldsymbol{z},\boldsymbol{x})d\boldsymbol{z}$$ being the marginal likelihood and the reason for which Bayesian inference can be difficult
+
+---
+# VB in one slide
+Find a reasonable approximation of the posterior distribution by optimization
+$$q^\star(\boldsymbol{z}) = \mbox{argmin}_{q(\boldsymbol{z})\in \mathcal{Q}} \mbox{KL}\left(q(\boldsymbol{z}) \mid p(\boldsymbol{z}\mid \boldsymbol{x}) \right)$$
+- $q^\star(\boldsymbol{z})$ is the best candidate within the family $\mathcal{Q}$
+$$\mbox{KL}\left(q(\boldsymbol{z}) \mid p(\boldsymbol{z}\mid \boldsymbol{x}) \right)=\mathbb{E}_{q}[\log q(\boldsymbol{z})] -\mathbb{E}_{q}[\log p(\boldsymbol{z}\mid \boldsymbol{x})]$$
+Direct optimization of KL is not possible, since the marginal likelihood is still around
+$$=\mathbb{E}_q[\log q(\boldsymbol{z})] -\mathbb{E}_q[\log p(\boldsymbol{z},\boldsymbol{x})] + \log p(\boldsymbol{x})$$
+We focus on the first 2 terms (with changed sign).
+$$\mbox{ELBO}(p)=\mathbb{E}_q[\log q(\boldsymbol{z})] -\mathbb{E}_q[\log p(\boldsymbol{z},\boldsymbol{x})]$$
+---
+
+# Why do people stress on the ELBO
+- Maximizing ELBO - wrt to $q$ - is equivalent to minimizing the KL
+- The ELBO lower bounds the marginal likelihood: $\mbox{ELBO}(p) \leq \log p(\boldsymbol{x})$
+$$\log p(\boldsymbol{x}) = \mbox{ELBO}(p) + \mbox{KL}\left(q(\boldsymbol{z}) \mid p(\boldsymbol{z}) \right)$$
+### Is it reasonable?
+- We can rewrite it as
+$$\mbox{ELBO}(p)=\mathbb{E}_q[\log p(\boldsymbol{x}\mid\boldsymbol{z})] -\mbox{KL}\left(q(\boldsymbol{z}) \mid p(\boldsymbol{z}) \right)$$
+Hence, favors density which are similar to the expected likelihood (explain the data) and the prior
+---
+
+# Variational family
+- If $\mathcal{Q}$ is the space of all densities, than we're just estimating the true posterior with optimization
+- In general, $p(\boldsymbol{z}\mid\boldsymbol{x}) \notin Q$ (and here it comes the approximation)
+- Trade off between flexibility of the family and computational tractability
+
+#### Mean Field variational family
+- Blocks of variables (parameters) are independent (it is the only assumption!)
+$$q(\boldsymbol{z}) =\prod_{k=1}^M q_k(z_k)$$
+- In case of conditionally conjugate models (e.g. mixtures)
+$$q(\beta, \boldsymbol{z}) =q(\beta)\prod_{i=1}^n q_i(z_i)$$
+
+---
+
+## Coordinate Ascent Variational Inference (CAVI)
+- Very neat result for the optimal $q^\star_k$ (e.g. Blei et al, 2017, eq. 17 )
+
+$$q_k^\star(z_k) \propto \exp\{\mathbb{E}_{-k} [\log p(z_k\mid\boldsymbol{z}_{-k},\boldsymbol{x})]\}$$
+
+1. Take $p(z_k\mid\boldsymbol{z}_{-k},\boldsymbol{x})$, the full-conditional for $z_k$
+1. Write it down and take the log
+1. Take the expectation wrt the *all the others factors*
+$$\prod_{j\neq k} q_k(z_k)$$
+1. The exp of that quantity is the optimal distribution
+1. iterate over all $k$ until changes in the ELBO are sufficiently small
+
+---
+
+## Logistic Regression with PG (Polson et al., 2013)
+$\{y_i\}_{i=1}^n \in \{0,1\}$ binary response, covariates $\{x_i\}_{i=1}^n \in \mathbb{R}^p$ and unknown coefficients $\beta\in \mathbb{R}^p$
+$$y_i \mid \pi_i \sim \mbox{Bernoulli}(\pi_i), \quad \pi_i={\exp{(x_i^T\beta)} \over 1+ \exp{(x_i^T\beta)}} $$
+- Gaussian prior for 
+$$\beta \sim \mbox{N}_p(\mu_0,\Sigma_0)$$
+- Gibbs sampler with PG (Polson et al, 2013)
+1. Draw $\omega_i \mid - \sim\mbox{PG}(1,x_i^T\beta)$
+2. Draw $\beta \mid - \sim \mbox{N}_p(\tilde\mu,\tilde\Sigma)$, with 
+
+$$\tilde\Sigma = (X^T \Omega X + \Sigma_0^{-1})^{-1} \quad \tilde\mu = \tilde\Sigma [X^T (y - 0.5) + \Sigma^{-1}_0\mu_0]$$
+and $\Omega=\mbox{diag}(\omega_1,\dots,\omega_n)$
+---
+## VB (Durante and Rigon, 2019+)
+
+Variational Family $q(\beta,\{\omega_i\}_{i=1}^n) = q(\beta)\prod_{i=1}^nq_i(\omega_i)$
+
+Optimal distribution for beta
+$$\log p(\beta \mid -) = -\frac{1}{2}\beta^T (X^T \Omega X + \Sigma^{-1}) \beta + \beta^T[X^T (y - 0.5) + \Sigma^{-1}\mu] $$
+--
+Than, we take the expectations wrt to the other factors to obtain the optimal density
+$$\log q^\star(\beta) = \mathbb{E}_{-\beta}[\log p(\beta \mid -)] + c$$
+$$\log q^\star(\beta) = -\frac{1}{2}\beta^T (X^T \mathbb{E}_{-\beta}[\Omega] X + \Sigma^{-1}) \beta + \beta^T[X^T (y - 0.5) + \Sigma^{-1}\mu]$$
+where
+$$\mathbb{E}_{-\beta}[\Omega]=\mbox{diag}(\mathbb{E}_{-\beta}[\omega_1],\dots,\mathbb{E}_{-\beta}[\omega_n])=\mbox{diag}(\mathbb{E}_{q^\star(\omega_1)}[\omega_1],\dots,\mathbb{E}_{q^\star(\omega_n)}[\omega_n])$$
+- Still Gaussian with covariance $\bar\Sigma$ and mean $\bar\mu$
+- But we don't know the form of $q_i^\star(\omega_i)$
+---
+class: middle
+$$\log p(\omega_i \mid -) = (x_i^T\beta)^2 + \log p(\omega_i)$$
+with $p(\omega_i)$ being the density of a $\mbox{PG}(1,0)$
+
+Than, we take the expectations wrt to the other factors to obtain the optimal density
+$$\log q^\star(\omega_i) = \mathbb{E}_{-\omega_i}[\log p(\omega_i \mid -)]+c$$
+$$= \mathbb{E}_{q^\star(\beta)}[(x_i^T\beta)^2] + \log p(\omega_i) + c $$
+
+- We know that the optimal $\beta$ is Gaussian
+$$\mathbb{E}_{q^\star(\beta)}[(x_i^T\beta)^2] = x_i^T\bar\Sigma x_i + (x_i\bar\mu)^2 $$
+- Hence, the optimal $\omega_i$ is $\mbox{PG}(1, [x_i^T\bar\Sigma x_i + (x_i\bar\mu)^2]^{\frac{1}{2}}]$
+
+<!-- - We know the optimal distribution for $\beta$ (Gaussian) -->
+<!-- - And we use it in the optimal density for $\beta$ -->
+---
+going back to $\beta$
+$$\log q^\star(\beta) = -\frac{1}{2}\beta^T (X^T \bar\Omega X + \Sigma^{-1}) \beta + \beta^T[X^T (y - 0.5) + \Sigma^{-1}\mu]$$
+where
+$$\bar\Omega=\mbox{diag}(\mathbb{E}_{q^\star(\omega_1)}[\omega_1],\dots,\mathbb{E}_{q^\star(\omega_n)}[\omega_n])=$$
+$$\mbox{diag}\left(\frac{1}{2\omega_1}\tanh\left(\frac{\omega_1}{2}\right),\dots,\frac{1}{2\omega_n}\tanh\left(\frac{\omega_n}{2}\right) \right)$$
+
+### To sum up
+- $q^\star(\beta) = \mbox{N}(\bar\mu,\bar\Sigma)$, with
+$$\bar\Sigma = (X^T \bar\Omega X + \Sigma^{-1})^{-1}, \quad \bar\mu = \bar\Sigma[X^T (y - 0.5) + \Sigma^{-1}\mu]$$
+- $q^\star(\omega_i) = \mbox{PG}(1, [x_i^T\bar\Sigma x_i + (x_i\bar\mu)^2]^{\frac{1}{2}}]$
+---
+
+
+
+
+```{r comment='#'}
+logit_CAVI = function(X, y, prior, tol = 1e-16, maxiter=10000){
+  
+  P = solve(prior$Sigma_beta)
+  Pmu = P %*% prior$mu_beta
+	
+  # Iterative procedure
+	for(t in 2:maxiter){
+
+		P_vb       = crossprod(X*omega,X) + P
+		Sigma_vb   = solve(P_vb) 
+		mu_vb      = Sigma_vb %*% (crossprod(X,y-0.5) + Pmu)
+
+		eta        = c(X%*%mu_vb)
+		xi         = sqrt(eta^2 +  rowSums(X %*% Sigma_vb * X))
+		omega      = tanh(xi/2)/(2*xi); 
+
+		lowerbound[t]  = elbo() 
+
+		if(abs(lowerbound[t] - lowerbound[t-1]) < tol) 
+		  return(list('q_beta' = list(Sigma_vb, mu_vb)))
+	}
+	stop("The algorithm has not reached convergence")
+}
+```
+.footnote[Source: [tommasorigon/logisticVB](tommasorigon/logisticVB)]
+---
+
+# Computing the ELBO
+$$\mbox{ELBO}(p)=\mathbb{E}[\log p(\boldsymbol{y}\mid\beta)] -\mbox{KL}\left(q(\boldsymbol{\beta}) \mid p(\boldsymbol{\beta}) \right)$$
+- First part: expected log likelihood
+$$\int q(\beta) \log \prod_{i=1}^n p(y_i \mid \beta) d\beta = \sum_{i=1}^n\mathbb{E}_{q(\beta)}[\log p(y_i \mid \beta)]$$
+$$=\sum_{i=1}^n\left[(y_i-\frac{1}{2})x_i^T \bar\mu - {1\over 2}\omega_i - \log{(1+\exp\{-\omega_i\})}\right]$$
+
+- Second: KL divergence between optimal and prior distribution (kl of mv Gaussian)
+$${{1 \over 2}\left\{\operatorname {tr} \left({\boldsymbol {\Sigma_0 }}^{-1}{\boldsymbol {\bar\Sigma }}\right)+\left({\boldsymbol {\bar \mu }}-{\boldsymbol {\mu }}_{0}\right)^{\rm {T}}{\boldsymbol {\Sigma }}_{0}^{-1}({\boldsymbol {\bar \mu }}-{\boldsymbol {\mu }}_{0})-p+\log {|{\boldsymbol {\bar \Sigma }}| - \log |{\boldsymbol {\Sigma }}_{0}|}\right\},}$$
+
+    <!-- lowerbound[t]  = 0.5*p + 0.5*ldet(Sigma_vb) + 0.5*Pdet - 0.5*t(mu_vb - mu)%*%P%*%(mu_vb - mu) + sum((y-0.5)*eta +log(plogis(xi)) - 0.5*xi) - 0.5*sum(diag(P %*% Sigma_vb)) -->
+
+---
+
+class: middle
+
+
+#Some notes
+
+ - The ELBO is generally convex. Hence, CAVI leads to local optima (sensible to initialization)
+ - We can always take the realization which gives the highest value
+ - The optimal distributions belonging to the same family of the full conditionals is not a chance, but a nice results for the EF
+ - We only need to update the EF *natural* parameters
+ - In the previuos case, $\beta$ can be written as
+ 
+ $$p(\beta\mid y,\omega) =h(\beta)\exp[\eta_1(y)^{\intercal}\beta+\eta_2(\omega)^{\intercal}\beta\beta^{\intercal}-\alpha\{\eta_1(y),\eta_2(\omega) \} ]$$
+ - and the updates are
+ 
+ $$\mathbb{E}_{q(\omega)}[\eta_1(y)] \quad \mathbb{E}_{q(\omega)}[\eta_1(\omega)]$$
+
+- while $\omega_i$
+$$p(\omega_i \mid y,\omega_{-i},\beta) =p(\omega_i \mid y,\beta) =h(\omega_i)\exp[\eta_i(\beta)^{\intercal}\omega_i-\alpha\{\eta_i(\beta) \} ]$$
+
+ $$\mathbb{E}_{q(\beta)}[\eta_i(\beta)]$$
+---
+class: middle
+
+#An alternative view
+
+- The EF specification has motivated a different view of VB
+- As an alternative to coordinate ascent, we could 'climb' the ELBO, since in conditionally conjugate models it has a very simple form
+#### A result
+- The derivative of the ELBO is equivalent to the expectation of the natural parameters
+- Denote with $\boldsymbol{\lambda}$ the optimal parameters of the variational distributions
+- Derivatives of the ELBO are equal to zero when 
+ $$\mathbb{E}[\eta_1(y)] - \lambda_1 = 0 \quad \mathbb{E}[\eta_1(\omega)] - \lambda_2 = 0$$
+ clearly leading to the CAVI optimal updates
+- This view motivates other types of optimization leveraging on gradient information (e.g. gradient descent and friends)
+---
+ 
+##SVI (Stochastic Variational Inference; Hoffman, 2013)
+- Solve the optimal equation with iterative (and cheap) updates
+- Optimal distribution have the EF form
+$$p(\beta\mid y,\omega) =h(\beta)\exp[\eta_1(y)^{\intercal}\beta+\eta_2(\omega)^{\intercal}\beta\beta^{\intercal}-\alpha\{\eta_1(y),\eta_2(\omega) \} ]$$
+
+We want to find the optimal natural parameters
+ $$\mathbb{E}[\eta_1(y)] - \lambda_1 = 0 \quad \mathbb{E}[\eta_1(\omega)] - \lambda_2 = 0$$
+
+ $$\Sigma_0^{-1}\mu_0 + \sum_{i=1}^n x_i(y_i-0.5) - \lambda_1 = 0$$
+ $$-0.5\left [\Sigma_0^{-1} + \sum_{i=1}^n x_i\mathbb{E}_{q^\star(\omega_i)}[\omega_i]x_i^T \right] - \lambda_2 =0$$
+- Avoiding updates of all the $\omega_i$s
+- Leveraging on stochastic optimization (Robbinson and Monro, 1951)
+---
+
+- Construct a random version of
+ $$\left[ \Sigma_0^{-1}\mu_0 + \sum_{i=1}^n x_i(y_i-0.5) - \lambda_1, -0.5\left [\Sigma_0^{-1} + \sum_{i=1}^n x_i\mathbb{E}_{q^\star(\omega_i)}[\omega_i]x_i^T \right] - \lambda_2 \right]$$
+whose expectations coincide with this function, but are cheaper to compute
+- Simple solution is to construct the discrete RV $[B_i(\lambda_1),B_i(\lambda_2)]$ assuming values
+
+ $$\left[\Sigma_0^{-1}\mu_0 + nx_i(y_i-0.5) - \lambda_1, -0.5\left [\Sigma_0^{-1} + n x_i\mathbb{E}_{q^\star(\omega_i)}[\omega_i]x_i^T \right] - \lambda_2 \right]$$
+ with equal probability $1/n$, relying on the mechanism which samples $i$ uniformly on $\{1,\dots,n\}$ (very easy to extent to batches)
+- Climb the gradient with updates
+$$\lambda_1^{(t)} = \lambda_1^{(t-1)} + \rho_t B_t(\lambda_1^{(t-1)}), \quad \lambda_2^{(t)} = \lambda_2^{(t-1)} + \rho_t B_t(\lambda_2^{(t-1)})$$
+where $\sum_{t=1} \rho_t = \infty$ and $\sum_{t=1} \rho_t^2 < \infty$, for example $\rho_t={1 \over (t+\tau)^\kappa}$ with $\kappa \in [.5,1]$ and $\tau>0$
+---
+```{r comment='#'}
+
+logit_SVI = function(X, y, prior, iter, tau, kappa){
+  # Iterative procedure
+  for(t in 1:iter){
+  
+    # Sample the observation
+    id  = sample.int(n,1)
+    x_i = X[id,]; y_i <- y[id]
+    
+    # Update the local parameter
+    Sigma_vb   = solve(Eta2_out) 
+    mu_vb      = Sigma_vb%*%Eta1_out
+    
+    eta_i   = c(crossprod(x_i, mu_vb))
+    xi_i    = sqrt(eta_i^2 +  rowSums(x_i %*% Sigma_vb * x_i))
+    omega_i = tanh(xi_i/2)/(2*xi_i) 
+    
+    Eta1       = n*x_i*(y_i-0.5) + Pmu
+    Eta2       = n*tcrossprod(x_i*omega_i,x_i) + P
+    
+    # Update the final estimates
+    rho      = 1/(t + tau)^kappa 
+    Eta1_out = (1 - rho)*Eta1_out + rho*Eta1
+    Eta2_out = (1 - rho)*Eta2_out + rho*Eta2
+  }
+  # Output
+  Sigma_vb   = matrix(solve(Eta2_out),p,p)
+  mu_vb      = matrix(Sigma_vb%*%Eta1_out,p,1)
+  
+  return(list(mu=mu_vb,Sigma=Sigma_vb))
+}
+
+```
+<!-- .footnote[Source: [tommasorigon/logisticVB](tommasorigon/logisticVB)] -->
+
+---
+#A simple example with 2 coefficients
+![](CAVI_vs_SVI.png)
+.footnote[Source: [tommasorigon/logisticVB](tommasorigon/logisticVB)]
+---
+
+# Variational and MCMC
+There is a lot of room to investigate the connection between the two methods. This is a non exhaustive comparison 
+.pull-left[
+### MCMC
+1. Approximation due to the second MC (Monte Carlo)
+1. Sampling
+1. Ergodic theorem on Markov Chains
+1. likes exponential families
+1. Very well known theoretical properties and lots of research
+1. Sometimes very slow, in particular for DA
+]
+
+.pull-right[
+###VB
+1. We know we're not reaching the *true* posterior
+1. Optimization 
+1. Calculus of variations + a bit of physics
+1. likes exponential families
+1. (almost) no theory, some recent papers on post. consitency
+1. Generally fast, in particular stochastic versions
+]
+
+And several extensions are available: $\alpha$-VB, different families, and many others.
+
+---
+class: center, middle
+![](https://media1.tenor.com/images/4ad6cee33a45879de07fa39004271458/tenor.gif)
