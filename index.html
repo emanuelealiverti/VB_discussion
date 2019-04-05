@@ -207,7 +207,7 @@ logit_CAVI = function(X, y, prior, tol = 1e-16, maxiter=10000){
 `$$=\sum_{i=1}^n\left[(y_i-\frac{1}{2})x_i^T \bar\mu - {1\over 2}\omega_i - \log{(1+\exp\{-\omega_i\})}\right]$$`
 
 - Second: KL divergence between optimal and prior distribution (kl of mv Gaussian)
-`$${1 \over 2}\left\{\operatorname {tr} \left({\boldsymbol {\Sigma_0 }}^{-1}{\boldsymbol {\bar\Sigma }}\right)+\left({\boldsymbol {\bar \mu }}-{\boldsymbol {\mu }}_{0}\right)^{\rm {T}}{\boldsymbol {\Sigma }}_{0}^{-1}({\boldsymbol {\bar \mu }}-{\boldsymbol {\mu }}_{0})-p+\log {|{\boldsymbol {\bar \Sigma }}| - \log |{\boldsymbol {\Sigma }}_{0}|}\right\},}$$`
+`$${1 \over 2}\left\{\operatorname {tr} \left({\boldsymbol {\Sigma_0 }}^{-1}{\boldsymbol {\bar\Sigma }}\right)+\left({\boldsymbol {\bar \mu }}-{\boldsymbol {\mu }}_{0}\right)^{\rm {T}}{\boldsymbol {\Sigma }}_{0}^{-1}({\boldsymbol {\bar \mu }}-{\boldsymbol {\mu }}_{0})-p+\log {|{\boldsymbol {\bar \Sigma }}| - \log |{\boldsymbol {\Sigma }}_{0}|}\right\}$$`
 
     &lt;!-- lowerbound[t]  = 0.5*p + 0.5*ldet(Sigma_vb) + 0.5*Pdet - 0.5*t(mu_vb - mu)%*%P%*%(mu_vb - mu) + sum((y-0.5)*eta +log(plogis(xi)) - 0.5*xi) - 0.5*sum(diag(P %*% Sigma_vb)) --&gt;
 
